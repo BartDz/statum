@@ -68,4 +68,117 @@ class Database
             ]);
         }
     }
+
+    public function addService(string $name, string $url, int $expectedStatus = 200): void
+    {
+        $this->pdo->prepare("INSERT INTO services (name, url, expected_status) VALUES (?, ?, ?)")
+                  ->execute([$name, $url, $expectedStatus]);
+    }
+
+    // --- checks ---
+
+    public function recordCheck(int $serviceId, int $statusCode, int $latencyMs): void
+    {
+        $this->pdo->prepare("INSERT INTO checks (service_id, status_code, latency_ms) VALUES (?, ?, ?)")
+                  ->execute([$serviceId, $statusCode, $latencyMs]);
+    }
+
+    /** One row per day for the last $days days. */
+    public function getDailyUptime(int $serviceId, int $days = 90): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT
+                date(timestamp) AS date,
+                COUNT(*)        AS total,
+                SUM(CASE WHEN status_code BETWEEN 200 AND 399 THEN 1 ELSE 0 END) AS up_count,
+                ROUND(
+                    100.0 * SUM(CASE WHEN status_code BETWEEN 200 AND 399 THEN 1 ELSE 0 END) / COUNT(*),
+                    1
+                ) AS uptime_pct
+            FROM checks
+            WHERE service_id = :id
+              AND timestamp >= datetime('now', :offset)
+            GROUP BY date(timestamp)
+            ORDER BY date(timestamp)
+        ");
+        $stmt->execute([':id' => $serviceId, ':offset' => "-{$days} days"]);
+        return $stmt->fetchAll();
+    }
+
+    public function getLatestCheck(int $serviceId): ?object
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM checks WHERE service_id = ? ORDER BY timestamp DESC LIMIT 1"
+        );
+        $stmt->execute([$serviceId]);
+        return $stmt->fetch() ?: null;
+    }
+
+    /** Last $hours hours of checks for sparkline. */
+    public function getRecentChecks(int $serviceId, int $hours = 24): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT * FROM checks
+            WHERE service_id = :id
+              AND timestamp >= datetime('now', :offset)
+            ORDER BY timestamp
+        ");
+        $stmt->execute([':id' => $serviceId, ':offset' => "-{$hours} hours"]);
+        return $stmt->fetchAll();
+    }
+
+    public function getUptimePercent(int $serviceId, int $days = 30): float
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT ROUND(
+                100.0 * SUM(CASE WHEN status_code BETWEEN 200 AND 399 THEN 1 ELSE 0 END) / COUNT(*),
+                2
+            ) AS pct
+            FROM checks
+            WHERE service_id = :id
+              AND timestamp >= datetime('now', :offset)
+        ");
+        $stmt->execute([':id' => $serviceId, ':offset' => "-{$days} days"]);
+        return (float) ($stmt->fetchColumn() ?? 100.0);
+    }
+
+    // --- incidents ---
+
+    public function getOpenIncidents(): array
+    {
+        return $this->pdo->query("
+            SELECT i.*, s.name AS service_name
+            FROM incidents i
+            LEFT JOIN services s ON s.id = i.service_id
+            WHERE i.end_time IS NULL
+            ORDER BY i.start_time DESC
+        ")->fetchAll();
+    }
+
+    public function getAllIncidents(int $limit = 20): array
+    {
+        $stmt = $this->pdo->prepare("
+            SELECT i.*, s.name AS service_name
+            FROM incidents i
+            LEFT JOIN services s ON s.id = i.service_id
+            ORDER BY i.start_time DESC
+            LIMIT ?
+        ");
+        $stmt->execute([$limit]);
+        return $stmt->fetchAll();
+    }
+
+    public function addIncident(string $title, string $description, ?int $serviceId): int
+    {
+        $this->pdo->prepare("INSERT INTO incidents (title, description, service_id) VALUES (?, ?, ?)")
+                  ->execute([$title, $description, $serviceId]);
+        return (int) $this->pdo->lastInsertId();
+    }
+
+    public function resolveIncident(int $id): void
+    {
+        $this->pdo->prepare(
+            "UPDATE incidents SET end_time = datetime('now'), status = 'resolved' WHERE id = ?"
+        )->execute([$id]);
+    }
 }
