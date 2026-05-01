@@ -23,6 +23,7 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($siteName) ?></title>
     <link rel="stylesheet" href="/css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -42,24 +43,36 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
         <div class="services">
             <?php foreach ($data as $row): ?>
                 <?php
-                    $service = $row['service'];
-                    $latest  = $row['latest'];
-                    $isUp    = $row['is_up'];
-                    $badge   = $latest === null ? 'unknown' : ($isUp ? 'up' : 'down');
-                    $label   = $latest === null ? 'No data' : ($isUp ? 'Operational' : 'Down');
-                    $latency = $latest ? $latest->latency_ms . ' ms' : '—';
+                    $service      = $row['service'];
+                    $latest       = $row['latest'];
+                    $isUp         = $row['is_up'];
+                    $badge        = $latest === null ? 'unknown' : ($isUp ? 'up' : 'down');
+                    $label        = $latest === null ? 'No data' : ($isUp ? 'Operational' : 'Down');
+                    $latency      = $latest ? $latest->latency_ms . ' ms' : '—';
+                    $recentChecks = $db->getRecentChecks($service->id, 24);
+                    $latencyData  = json_encode(array_map(fn($c) => (int) $c->latency_ms, $recentChecks));
                 ?>
-                <div class="service">
+                <div class="service" data-id="<?= $service->id ?>">
                     <div class="service__header">
                         <span class="service__name"><?= htmlspecialchars($service->name) ?></span>
                         <span class="badge badge--<?= $badge ?>"><?= $label ?></span>
                     </div>
 
                     <div class="service__meta">
-                        <span>Response: <?= $latency ?></span>
-                        <span>30d uptime: <?= number_format($row['uptime30'], 1) ?>%</span>
-                        <span>90d uptime: <?= number_format($row['uptime90'], 1) ?>%</span>
+                        <span>Response: <span data-role="latency"><?= $latency ?></span></span>
+                        <span>30d uptime: <span data-role="uptime30"><?= number_format($row['uptime30'], 1) ?></span>%</span>
+                        <span>90d uptime: <span data-role="uptime90"><?= number_format($row['uptime90'], 1) ?></span>%</span>
                     </div>
+
+                    <?php if (!empty($recentChecks)): ?>
+                    <div class="sparkline-wrap">
+                        <canvas
+                            data-service-id="<?= $service->id ?>"
+                            data-latency="<?= htmlspecialchars($latencyData) ?>"
+                            height="40"
+                        ></canvas>
+                    </div>
+                    <?php endif ?>
 
                     <div class="uptime-bars">
                         <?php foreach ($row['days'] as $day): ?>
