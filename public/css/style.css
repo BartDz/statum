@@ -68,9 +68,24 @@ footer {
     border: 1px solid var(--border);
 }
 
-.banner--operational { border-color: var(--green); color: var(--green); }
-.banner--partial     { border-color: var(--yellow); color: var(--yellow); }
-.banner--major       { border-color: var(--red);   color: var(--red); }
+.banner--operational {
+    border-color: var(--green);
+    color: var(--green);
+    background: linear-gradient(135deg, #0d1f16 0%, var(--surface) 60%);
+    transition: background 0.5s;
+}
+.banner--partial {
+    border-color: var(--yellow);
+    color: var(--yellow);
+    background: linear-gradient(135deg, #1f1800 0%, var(--surface) 60%);
+    transition: background 0.5s;
+}
+.banner--major {
+    border-color: var(--red);
+    color: var(--red);
+    background: linear-gradient(135deg, #1f0808 0%, var(--surface) 60%);
+    transition: background 0.5s;
+}
 
 .banner__dot {
     width: 10px;
@@ -79,9 +94,17 @@ footer {
     flex-shrink: 0;
 }
 
-.banner--operational .banner__dot { background: var(--green); }
-.banner--partial     .banner__dot { background: var(--yellow); }
-.banner--major       .banner__dot { background: var(--red); }
+.banner--operational .banner__dot {
+    background: var(--green);
+    animation: pulse-green 2s ease-in-out infinite;
+}
+.banner--partial .banner__dot { background: var(--yellow); }
+.banner--major   .banner__dot { background: var(--red); }
+
+@keyframes pulse-green {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(62, 207, 142, 0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(62, 207, 142, 0); }
+}
 
 /* ── Service cards ── */
 
