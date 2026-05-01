@@ -1,0 +1,12 @@
+# Block direct access to everything outside public/
+# On Apache: set DocumentRoot to public/ instead — this is a fallback
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(?!public/)(.*)$ public/$1 [L]
+</IfModule>
+
+# Deny access to sensitive dirs
+<DirectoryMatch "^.*(db|src|config|worker).*$">
+    Require all denied
+</DirectoryMatch>

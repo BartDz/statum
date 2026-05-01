@@ -1,0 +1,20 @@
+Options -Indexes
+
+RewriteEngine On
+
+# Route everything not an existing file/dir through index.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ index.php [QSA,L]
+
+# Security headers
+<IfModule mod_headers.c>
+    Header set X-Content-Type-Options "nosniff"
+    Header set X-Frame-Options "DENY"
+    Header set Referrer-Policy "no-referrer"
+</IfModule>
+
+# Block dotfiles
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
