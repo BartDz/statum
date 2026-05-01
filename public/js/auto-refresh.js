@@ -24,7 +24,7 @@ function initSparklines() {
     document.querySelectorAll('[data-service-id]').forEach(canvas => {
         const id      = canvas.dataset.serviceId;
         const raw     = canvas.dataset.latency ?? '[]';
-        const points  = JSON.parse(raw);
+        const points  = JSON.parse(raw).filter(v => v !== null && v < 10000);
 
         charts[id] = new Chart(canvas, {
             type: 'line',

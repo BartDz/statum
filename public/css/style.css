@@ -161,6 +161,18 @@ footer {
 .badge--down    { background: #3a1a1a; color: var(--red); }
 .badge--unknown { background: #2a2a2a; color: var(--muted); }
 
+/* ── Sparkline ── */
+
+.sparkline-wrap {
+    margin-bottom: 12px;
+    height: 40px;
+}
+
+.sparkline-wrap canvas {
+    width: 100% !important;
+    height: 40px !important;
+}
+
 /* ── Uptime bars ── */
 
 .uptime-bars {
