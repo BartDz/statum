@@ -242,3 +242,23 @@ footer {
 .incident small { color: var(--muted); font-size: 11px; display: block; margin-top: 6px; }
 
 .empty { color: var(--muted); padding: 20px 0; }
+
+/* ── Responsive ── */
+
+@media (max-width: 600px) {
+    .service__meta  { flex-direction: column; gap: 4px; }
+    .service__footer { display: none; }
+    .uptime-bar     { border-radius: 1px; }
+    header h1       { font-size: 16px; }
+}
+
+/* ── Uptime bar — smooth scale on hover ── */
+
+.uptime-bar {
+    transition: transform 0.1s, opacity 0.1s;
+}
+
+.uptime-bar:hover {
+    transform: scaleY(1.15);
+    opacity: 0.9;
+}

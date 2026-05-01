@@ -2,17 +2,10 @@
 
 session_start();
 
-// Load .env
-$envFile = __DIR__ . '/../.env';
-if (is_file($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (str_starts_with(trim($line), '#')) continue;
-        [$k, $v] = array_pad(explode('=', $line, 2), 2, '');
-        putenv(trim($k) . '=' . trim($v));
-    }
-}
-
+require_once __DIR__ . '/../src/Env.php';
 require_once __DIR__ . '/../src/Database.php';
+
+Env::load(__DIR__ . '/../.env');
 
 $adminPassword = getenv('ADMIN_PASSWORD') ?: 'admin';
 $db = new Database(__DIR__ . '/../db/status.sqlite');
@@ -141,7 +134,7 @@ $siteName  = getenv('SITE_NAME') ?: 'Status Page';
                 <?php foreach ($services as $s): ?>
                     <tr>
                         <td><?= htmlspecialchars($s->name) ?></td>
-                        <td><?= $s->url /* XSS: missing htmlspecialchars */ ?></td>
+                        <td><?= htmlspecialchars($s->url) ?></td>
                         <td><?= (int) $s->expected_status ?></td>
                     </tr>
                 <?php endforeach ?>

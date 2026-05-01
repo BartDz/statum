@@ -1,18 +1,11 @@
 <?php
 
+require_once __DIR__ . '/../../src/Env.php';
 require_once __DIR__ . '/../../src/Database.php';
 
 header('Content-Type: application/json');
 
-// Simple shared-secret auth (set WEBHOOK_TOKEN in .env)
-$envFile = __DIR__ . '/../../.env';
-if (is_file($envFile)) {
-    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
-        if (str_starts_with(trim($line), '#')) continue;
-        [$k, $v] = array_pad(explode('=', $line, 2), 2, '');
-        putenv(trim($k) . '=' . trim($v));
-    }
-}
+Env::load(__DIR__ . '/../../.env');
 
 $token = getenv('WEBHOOK_TOKEN');
 if ($token) {
