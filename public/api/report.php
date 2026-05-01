@@ -32,12 +32,12 @@ if (!$body || empty($body['url'])) {
     exit;
 }
 
-$db       = new Database(__DIR__ . '/../../db/status.sqlite');
+$db       = Database::fromEnv();
 $services = $db->getServices();
 
 $service = null;
 foreach ($services as $s) {
-    if ($s->url === $body['url']) {
+    if ($s->getUrl() === $body['url']) {
         $service = $s;
         break;
     }
@@ -52,23 +52,23 @@ if (!$service) {
 $statusCode = (int) ($body['status_code'] ?? 0);
 $latencyMs  = (int) ($body['latency_ms']  ?? 10000);
 
-$db->recordCheck($service->id, $statusCode, $latencyMs);
+$db->recordCheck($service->getId(), $statusCode, $latencyMs);
 
 // Auto-open incident on failure, auto-close on recovery
-$isDown      = $statusCode === 0 || $statusCode >= 400;
+$isDown        = $statusCode === 0 || $statusCode >= 400;
 $openIncidents = $db->getOpenIncidents();
-$existing = array_filter($openIncidents, fn($i) => $i->service_id == $service->id);
+$existing      = array_filter($openIncidents, fn($i) => $i->getServiceId() === $service->getId());
 
 if ($isDown && empty($existing)) {
     $db->addIncident(
-        $service->name . ' is down',
+        $service->getName() . ' is down',
         'Detected by n8n monitor. HTTP ' . ($statusCode ?: 'timeout'),
-        $service->id
+        $service->getId()
     );
 } elseif (!$isDown && !empty($existing)) {
     foreach ($existing as $inc) {
-        $db->resolveIncident($inc->id);
+        $db->resolveIncident($inc->getId());
     }
 }
 
-echo json_encode(['ok' => true, 'service' => $service->name, 'status_code' => $statusCode]);
+echo json_encode(['ok' => true, 'service' => $service->getName(), 'status_code' => $statusCode]);

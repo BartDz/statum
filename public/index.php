@@ -1,11 +1,23 @@
 <?php
 
+require_once __DIR__ . '/../src/Env.php';
 require_once __DIR__ . '/../src/Database.php';
 require_once __DIR__ . '/../src/StatusPage.php';
 
-$db   = new Database(__DIR__ . '/../db/status.sqlite');
-$page = new StatusPage($db);
-$data = $page->getData();
+Env::load(__DIR__ . '/../.env');
+
+$dbError            = null;
+$supabaseConfigured = (bool) getenv('SUPABASE_URL') && (bool) getenv('SUPABASE_KEY');
+
+try {
+    $db = Database::fromEnv();
+} catch (Throwable $e) {
+    $dbError = $e->getMessage();
+    $db      = Database::sqlite();
+}
+
+$page    = new StatusPage($db);
+$data    = $page->getData();
 $overall = $page->overallStatus($data);
 
 $bannerText = match ($overall) {
@@ -29,7 +41,18 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
 <body>
 
 <header>
-    <h1><?= htmlspecialchars($siteName) ?></h1>
+    <div class="header__title">
+        <h1><?= htmlspecialchars($siteName) ?></h1>
+        <?php if ($supabaseConfigured): ?>
+            <?php if ($dbError): ?>
+                <span class="db-badge db-badge--error" title="<?= htmlspecialchars($dbError) ?>">Supabase</span>
+            <?php else: ?>
+                <span class="db-badge db-badge--supabase">Supabase</span>
+            <?php endif ?>
+        <?php else: ?>
+            <span class="db-badge db-badge--sqlite">SQLite</span>
+        <?php endif ?>
+    </div>
 </header>
 
 <main>
@@ -49,13 +72,13 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
                     $isUp         = $row['is_up'];
                     $badge        = $latest === null ? 'unknown' : ($isUp ? 'up' : 'down');
                     $label        = $latest === null ? 'No data' : ($isUp ? 'Operational' : 'Down');
-                    $latency      = $latest ? $latest->latency_ms . ' ms' : '—';
-                    $recentChecks = $db->getRecentChecks($service->id, 24);
-                    $latencyData  = json_encode(array_map(fn($c) => (int) $c->latency_ms, $recentChecks));
+                    $latency      = $latest ? $latest->getLatencyMs() . ' ms' : '—';
+                    $recentChecks = $db->getRecentChecks($service->getId(), 24);
+                    $latencyData  = json_encode(array_map(fn($c) => $c->getLatencyMs(), $recentChecks));
                 ?>
-                <div class="service" data-id="<?= $service->id ?>">
+                <div class="service" data-id="<?= $service->getId() ?>">
                     <div class="service__header">
-                        <span class="service__name"><?= htmlspecialchars($service->name) ?></span>
+                        <span class="service__name"><?= htmlspecialchars($service->getName()) ?></span>
                         <span class="badge badge--<?= $badge ?>"><?= $label ?></span>
                     </div>
 
@@ -68,7 +91,7 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
                     <?php if (!empty($recentChecks)): ?>
                     <div class="sparkline-wrap">
                         <canvas
-                            data-service-id="<?= $service->id ?>"
+                            data-service-id="<?= $service->getId() ?>"
                             data-latency="<?= htmlspecialchars($latencyData) ?>"
                             height="40"
                         ></canvas>

@@ -6,20 +6,20 @@ require_once __DIR__ . '/../../src/StatusPage.php';
 header('Content-Type: application/json');
 header('Cache-Control: no-store');
 
-$db   = new Database(__DIR__ . '/../../db/status.sqlite');
+$db   = Database::fromEnv();
 $page = new StatusPage($db);
 $data = $page->getData();
 
 $services = array_map(fn($row) => [
-    'id'        => $row['service']->id,
-    'name'      => $row['service']->name,
-    'url'       => $row['service']->url,
-    'is_up'     => $row['is_up'],
-    'status'    => $row['latest'] ? $row['latest']->status_code : null,
-    'latency'   => $row['latest'] ? (int) $row['latest']->latency_ms : null,
-    'uptime30'  => $row['uptime30'],
-    'uptime90'  => $row['uptime90'],
-    'checked_at'=> $row['latest'] ? $row['latest']->timestamp : null,
+    'id'         => $row['service']->getId(),
+    'name'       => $row['service']->getName(),
+    'url'        => $row['service']->getUrl(),
+    'is_up'      => $row['is_up'],
+    'status'     => $row['latest'] ? $row['latest']->getStatusCode() : null,
+    'latency'    => $row['latest'] ? $row['latest']->getLatencyMs() : null,
+    'uptime30'   => $row['uptime30'],
+    'uptime90'   => $row['uptime90'],
+    'checked_at' => $row['latest'] ? $row['latest']->getTimestamp() : null,
 ], $data);
 
 echo json_encode([

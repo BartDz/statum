@@ -10,18 +10,18 @@ class StatusPage
         $result   = [];
 
         foreach ($services as $service) {
-            $latest   = $this->db->getLatestCheck($service->id);
-            $daily    = $this->fillDays($this->db->getDailyUptime($service->id, 90));
-            $uptime30 = $this->db->getUptimePercent($service->id, 30);
-            $uptime90 = $this->db->getUptimePercent($service->id, 90);
+            $latest   = $this->db->getLatestCheck($service->getId());
+            $daily    = $this->fillDays($this->db->getDailyUptime($service->getId(), 90));
+            $uptime30 = $this->db->getUptimePercent($service->getId(), 30);
+            $uptime90 = $this->db->getUptimePercent($service->getId(), 90);
 
             $result[] = [
-                'service'   => $service,
-                'latest'    => $latest,
-                'is_up'     => $latest !== null && $latest->status_code >= 200 && $latest->status_code < 400,
-                'days'      => $daily,
-                'uptime30'  => $uptime30,
-                'uptime90'  => $uptime90,
+                'service'  => $service,
+                'latest'   => $latest,
+                'is_up'    => $latest !== null && $latest->isUp(),
+                'days'     => $daily,
+                'uptime30' => $uptime30,
+                'uptime90' => $uptime90,
             ];
         }
 
@@ -35,17 +35,18 @@ class StatusPage
         $down = array_filter($data, fn($s) => !$s['is_up']);
 
         return match (true) {
-            count($down) === 0            => 'operational',
-            count($down) < count($data)   => 'partial',
-            default                       => 'major',
+            count($down) === 0          => 'operational',
+            count($down) < count($data) => 'partial',
+            default                     => 'major',
         };
     }
 
+    /** @param DaySummary[] $rows */
     private function fillDays(array $rows, int $days = 90): array
     {
         $indexed = [];
         foreach ($rows as $row) {
-            $indexed[$row->date] = $row;
+            $indexed[$row->getDate()] = $row;
         }
 
         $result = [];
@@ -53,18 +54,14 @@ class StatusPage
             $date = date('Y-m-d', strtotime("-{$i} days"));
 
             if (isset($indexed[$date])) {
-                $pct    = (float) $indexed[$date]->uptime_pct;
+                $pct    = $indexed[$date]->getUptimePct();
                 $status = $pct >= 99 ? 'up' : ($pct > 0 ? 'partial' : 'down');
             } else {
                 $pct    = null;
                 $status = 'no-data';
             }
 
-            $result[] = [
-                'date' => $date,
-                'status' => $status,
-                'uptime_pct' => $pct
-            ];
+            $result[] = ['date' => $date, 'status' => $status, 'uptime_pct' => $pct];
         }
 
         return $result;

@@ -37,11 +37,50 @@ header {
     padding-top: 40px;
     padding-bottom: 24px;
     border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 header h1 {
     font-size: 20px;
     font-weight: 600;
+}
+
+.header__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.db-badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 20px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    vertical-align: middle;
+}
+
+.db-badge--supabase {
+    background: #1a2e1a;
+    color: #3ecf8e;
+    border: 1px solid #3ecf8e55;
+}
+
+.db-badge--sqlite {
+    background: #1a1e2e;
+    color: #7b9ef0;
+    border: 1px solid #7b9ef055;
+}
+
+.db-badge--error {
+    background: #3a1a1a;
+    color: var(--red);
+    border: 1px solid var(--red);
+    cursor: help;
 }
 
 main { padding-top: 28px; padding-bottom: 40px; }
