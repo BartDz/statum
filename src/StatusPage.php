@@ -18,7 +18,7 @@ class StatusPage
             $result[] = [
                 'service'   => $service,
                 'latest'    => $latest,
-                'is_up'     => $latest->status_code >= 200 && $latest->status_code < 400,
+                'is_up'     => $latest !== null && $latest->status_code >= 200 && $latest->status_code < 400,
                 'days'      => $daily,
                 'uptime30'  => $uptime30,
                 'uptime90'  => $uptime90,

@@ -45,8 +45,8 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
                     $service = $row['service'];
                     $latest  = $row['latest'];
                     $isUp    = $row['is_up'];
-                    $badge   = $isUp ? 'up' : 'down';
-                    $label   = $isUp ? 'Operational' : 'Down';
+                    $badge   = $latest === null ? 'unknown' : ($isUp ? 'up' : 'down');
+                    $label   = $latest === null ? 'No data' : ($isUp ? 'Operational' : 'Down');
                     $latency = $latest ? $latest->latency_ms . ' ms' : '—';
                 ?>
                 <div class="service">
