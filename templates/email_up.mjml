@@ -1,0 +1,85 @@
+<mjml>
+  <mj-head>
+    <mj-preview>✅ {{SERVICE_NAME}} is back up — {{LATENCY_MS}}ms</mj-preview>
+    <mj-attributes>
+      <mj-all font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" />
+      <mj-text color="#c9d1d9" font-size="14px" line-height="1.5" padding="0" />
+      <mj-section padding="0" />
+    </mj-attributes>
+  </mj-head>
+  <mj-body background-color="#0d1117">
+
+    <!-- Header -->
+    <mj-section background-color="#161b22" border-bottom="1px solid #30363d" padding="16px 0">
+      <mj-column vertical-align="middle" padding="0 24px">
+        <mj-text font-size="16px" font-weight="700" color="#f0f6fc">
+          <span style="color:#3ecf8e;">●</span>&nbsp;statum
+        </mj-text>
+      </mj-column>
+      <mj-column vertical-align="middle" padding="0 24px">
+        <mj-text align="right">
+          <span style="background:#0d2b1e;color:#3ecf8e;font-size:11px;font-weight:700;padding:4px 12px;border-radius:20px;border:1px solid rgba(62,207,142,0.4);letter-spacing:0.5px;">● RECOVERED</span>
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Hero -->
+    <mj-section background-color="#161b22" padding="36px 24px 8px">
+      <mj-column>
+        <mj-text align="center" font-size="52px" padding-bottom="14px">🟢</mj-text>
+        <mj-text align="center" font-size="22px" font-weight="700" color="#f0f6fc" padding-bottom="8px">
+          {{SERVICE_NAME}} is back up
+        </mj-text>
+        <mj-text align="center" color="#8b949e" font-size="13px" padding-bottom="28px">
+          Recovered at {{TIME}}
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+    <!-- Details card -->
+    <mj-section background-color="#161b22" padding="0 24px 24px">
+      <mj-column background-color="#0d1117" border="1px solid #30363d" border-radius="8px" padding="0">
+        <mj-table font-size="13px" cellpadding="0">
+          <tr>
+            <td style="padding:13px 16px;color:#8b949e;border-bottom:1px solid #21262d;width:36%;">Service</td>
+            <td style="padding:13px 16px;text-align:right;font-weight:600;color:#f0f6fc;border-bottom:1px solid #21262d;">{{SERVICE_NAME}}</td>
+          </tr>
+          <tr>
+            <td style="padding:13px 16px;color:#8b949e;border-bottom:1px solid #21262d;">URL</td>
+            <td style="padding:13px 16px;text-align:right;color:#58a6ff;border-bottom:1px solid #21262d;word-break:break-all;">{{URL}}</td>
+          </tr>
+          <tr>
+            <td style="padding:13px 16px;color:#8b949e;">Latency</td>
+            <td style="padding:13px 16px;text-align:right;color:#3ecf8e;font-weight:600;">{{LATENCY_MS}} ms</td>
+          </tr>
+          <tr>
+            <td style="padding:13px 16px;color:#8b949e;">Status</td>
+            <td style="padding:13px 16px;text-align:right;color:#3ecf8e;font-weight:700;">HTTP {{STATUS_CODE}}</td>
+          </tr>
+        </mj-table>
+      </mj-column>
+    </mj-section>
+
+    <!-- CTA (optional — stripped by PHP when SITE_URL empty) -->
+    <mj-raw><!-- CTA_START --></mj-raw>
+    <mj-section background-color="#161b22" padding="0 24px 32px">
+      <mj-column>
+        <mj-button background-color="#1f6feb" color="#ffffff" font-size="14px" font-weight="600"
+                   border-radius="6px" inner-padding="12px 28px" href="{{SITE_URL}}">
+          View Status Page →
+        </mj-button>
+      </mj-column>
+    </mj-section>
+    <mj-raw><!-- CTA_END --></mj-raw>
+
+    <!-- Footer -->
+    <mj-section background-color="#161b22" border-top="1px solid #30363d" padding="18px 0">
+      <mj-column>
+        <mj-text align="center" color="#484f58" font-size="12px">
+          You're receiving this because email alerts are configured in statum.
+        </mj-text>
+      </mj-column>
+    </mj-section>
+
+  </mj-body>
+</mjml>

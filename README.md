@@ -39,12 +39,19 @@ Services are managed via the admin panel at `/admin.php`. Add each service (name
 |------------------------|----------|------------------------------------------------------|
 | `ADMIN_PASSWORD`       | **yes**  | Password for `/admin.php` — app refuses to start without it |
 | `SITE_NAME`            | no       | Title shown on the public page (default: `Status Page`) |
+| `SITE_URL`             | no       | Public URL of your status page — adds a button to alert emails |
 | `WEBHOOK_TOKEN`        | no       | Shared secret for `/api/report` (disables auth if empty) |
 | `CRON_TOKEN`           | **yes**  | Secret for `/cron.php` HTTP trigger — required to use endpoint |
-| `ALERT_EMAIL`          | no       | Reserved for future email alerts                     |
 | `SUPABASE_URL`         | **yes**  | Supabase project URL                                 |
 | `SUPABASE_KEY`         | **yes**  | Supabase anon key — used for DB badge indicator       |
 | `SUPABASE_DB_PASSWORD` | **yes**  | Supabase database password                           |
+| `ALERT_EMAIL`          | no       | Recipient for alert emails — enables email alerts when set |
+| `SMTP_HOST`            | no       | SMTP server hostname — omit to use PHP `mail()` instead |
+| `SMTP_PORT`            | no       | SMTP port (default: `587`) |
+| `SMTP_USER`            | no       | SMTP username |
+| `SMTP_PASS`            | no       | SMTP password |
+| `SMTP_FROM`            | no       | Sender address (defaults to `SMTP_USER`) |
+| `SMTP_FROM_NAME`       | no       | Sender name (defaults to `SITE_NAME`) |
 
 ## HTTP cron trigger
 
@@ -63,6 +70,47 @@ curl -H "X-Cron-Token: YOUR_CRON_TOKEN" https://yourdomain.com/cron.php
 Set `CRON_TOKEN` in `.env`. The endpoint returns JSON with per-service results.
 
 External cron services (cron-job.org, EasyCron, UptimeRobot) can call this URL every 5 minutes.
+
+## Email alerts
+
+statum sends HTML email alerts when a service goes down or recovers. Alerts fire only on **status transitions** (up → down, down → up) — not on every check.
+
+Set `ALERT_EMAIL` in `.env` to enable. Two transport options:
+
+### SMTP (recommended)
+
+Works with any SMTP provider — Gmail, Mailgun, Postmark, self-hosted Postfix:
+
+```env
+ALERT_EMAIL=you@example.com
+SITE_URL=https://status.example.com
+
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=you@gmail.com
+SMTP_PASS=your-app-password
+```
+
+For Gmail, generate an [App Password](https://myaccount.google.com/apppasswords) (requires 2FA enabled). Port `587` uses STARTTLS; port `465` uses SMTPS.
+
+### PHP mail() fallback
+
+For shared hosting or VPS with a local MTA (Postfix, Sendmail) already configured — just omit `SMTP_HOST`:
+
+```env
+ALERT_EMAIL=you@example.com
+```
+
+> **Note:** `mail()` does not work in Docker without a sidecar mail container (e.g. [Mailpit](https://mailpit.axllent.org/)). Use SMTP for Docker deployments.
+
+### Email template
+
+Alert emails use an MJML-compiled dark-theme HTML template (`templates/email_down.html`, `templates/email_up.html`). To modify the design, edit the `.mjml` source files and recompile:
+
+```bash
+mjml templates/email_down.mjml -o templates/email_down.html
+mjml templates/email_up.mjml   -o templates/email_up.html
+```
 
 ## n8n integration
 
