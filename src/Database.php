@@ -7,20 +7,14 @@ require_once __DIR__ . '/Entity/DaySummary.php';
 
 class Database
 {
-    private PDO    $pdo;
-    private string $driver; // 'sqlite' | 'pgsql'
+    private PDO $pdo;
 
-    private function __construct(string $dsn, ?string $user, ?string $pass, string $driver)
+    private function __construct(string $dsn, string $user, string $pass)
     {
-        $this->driver = $driver;
-        $this->pdo    = new PDO($dsn, $user, $pass, [
+        $this->pdo = new PDO($dsn, $user, $pass, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         ]);
-
-        if ($driver === 'sqlite') {
-            $this->migrate();
-        }
     }
 
     public static function fromEnv(): self
@@ -28,69 +22,20 @@ class Database
         $url      = getenv('SUPABASE_URL');
         $password = getenv('SUPABASE_DB_PASSWORD');
 
-        if ($url && $password) {
-            preg_match('/https:\/\/([^.]+)\.supabase\.co/', $url, $m);
-            if (empty($m[1])) {
-                throw new RuntimeException('Cannot parse project ref from SUPABASE_URL');
-            }
-            $dsn = sprintf(
-                'pgsql:host=db.%s.supabase.co;port=5432;dbname=postgres;sslmode=require',
-                $m[1]
-            );
-            return new self($dsn, 'postgres', $password, 'pgsql');
+        if (!$url || !$password) {
+            throw new RuntimeException('SUPABASE_URL and SUPABASE_DB_PASSWORD must be set in .env');
         }
 
-        return self::sqlite();
-    }
+        preg_match('/https:\/\/([^.]+)\.supabase\.co/', $url, $m);
+        if (empty($m[1])) {
+            throw new RuntimeException('Cannot parse project ref from SUPABASE_URL');
+        }
 
-    public static function sqlite(): self
-    {
-        $path = dirname(__DIR__) . '/db/status.sqlite';
-        return new self("sqlite:{$path}", null, null, 'sqlite');
-    }
-
-    public function isPostgres(): bool
-    {
-        return $this->driver === 'pgsql';
-    }
-
-    // --- internal helpers ---
-
-    private function since(int $days): string
-    {
-        return $this->driver === 'pgsql'
-            ? "NOW() - INTERVAL '{$days} days'"
-            : "datetime('now', '-{$days} days')";
-    }
-
-    private function migrate(): void
-    {
-        $this->pdo->exec("
-            CREATE TABLE IF NOT EXISTS services (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                name            TEXT    NOT NULL,
-                url             TEXT    NOT NULL,
-                expected_status INTEGER NOT NULL DEFAULT 200,
-                created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS checks (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                service_id  INTEGER NOT NULL REFERENCES services(id),
-                status_code INTEGER NOT NULL,
-                latency_ms  INTEGER NOT NULL,
-                timestamp   TEXT    NOT NULL DEFAULT (datetime('now'))
-            );
-            CREATE TABLE IF NOT EXISTS incidents (
-                id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                title       TEXT    NOT NULL,
-                description TEXT,
-                service_id  INTEGER REFERENCES services(id),
-                start_time  TEXT    NOT NULL DEFAULT (datetime('now')),
-                end_time    TEXT,
-                status      TEXT    NOT NULL DEFAULT 'investigating'
-            );
-            CREATE INDEX IF NOT EXISTS idx_checks_service_ts ON checks (service_id, timestamp);
-        ");
+        $dsn = sprintf(
+            'pgsql:host=db.%s.supabase.co;port=5432;dbname=postgres;sslmode=require',
+            $m[1]
+        );
+        return new self($dsn, 'postgres', $password);
     }
 
     // --- services ---
@@ -100,22 +45,6 @@ class Database
     {
         $rows = $this->pdo->query("SELECT * FROM services ORDER BY id")->fetchAll();
         return array_map(fn(array $r) => Service::fromRow($r), $rows);
-    }
-
-    public function upsertServicesFromConfig(array $config): void
-    {
-        $stmt = $this->pdo->prepare(
-            "INSERT INTO services (name, url, expected_status)
-             SELECT :name, :url, :expected_status
-             WHERE NOT EXISTS (SELECT 1 FROM services WHERE url = :url)"
-        );
-        foreach ($config as $s) {
-            $stmt->execute([
-                ':name'            => $s['name'],
-                ':url'             => $s['url'],
-                ':expected_status' => $s['expected_status'] ?? 200,
-            ]);
-        }
     }
 
     public function addService(string $name, string $url, int $expectedStatus = 200): void
@@ -142,8 +71,7 @@ class Database
     /** @return DaySummary[] */
     public function getDailyUptime(int $serviceId, int $days = 90): array
     {
-        $since = $this->since($days);
-        $stmt  = $this->pdo->prepare("
+        $stmt = $this->pdo->prepare("
             SELECT
                 DATE(timestamp) AS date,
                 COUNT(*)        AS total,
@@ -154,7 +82,7 @@ class Database
                 ) AS uptime_pct
             FROM checks
             WHERE service_id = :id
-              AND timestamp >= {$since}
+              AND timestamp >= NOW() - INTERVAL '{$days} days'
             GROUP BY DATE(timestamp)
             ORDER BY DATE(timestamp)
         ");
@@ -175,14 +103,10 @@ class Database
     /** @return Check[] */
     public function getRecentChecks(int $serviceId, int $hours = 24): array
     {
-        $since = $this->driver === 'pgsql'
-            ? "NOW() - INTERVAL '{$hours} hours'"
-            : "datetime('now', '-{$hours} hours')";
-
         $stmt = $this->pdo->prepare("
             SELECT * FROM checks
             WHERE service_id = :id
-              AND timestamp >= {$since}
+              AND timestamp >= NOW() - INTERVAL '{$hours} hours'
             ORDER BY timestamp
         ");
         $stmt->execute([':id' => $serviceId]);
@@ -191,15 +115,14 @@ class Database
 
     public function getUptimePercent(int $serviceId, int $days = 30): float
     {
-        $since = $this->since($days);
-        $stmt  = $this->pdo->prepare("
+        $stmt = $this->pdo->prepare("
             SELECT ROUND(
                 100.0 * SUM(CASE WHEN status_code BETWEEN 200 AND 399 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0),
                 2
             ) AS pct
             FROM checks
             WHERE service_id = :id
-              AND timestamp >= {$since}
+              AND timestamp >= NOW() - INTERVAL '{$days} days'
         ");
         $stmt->execute([':id' => $serviceId]);
         return (float) ($stmt->fetchColumn() ?? 100.0);
@@ -236,24 +159,17 @@ class Database
 
     public function addIncident(string $title, string $description, ?int $serviceId): int
     {
-        if ($this->driver === 'pgsql') {
-            $stmt = $this->pdo->prepare(
-                "INSERT INTO incidents (title, description, service_id) VALUES (?, ?, ?) RETURNING id"
-            );
-            $stmt->execute([$title, $description, $serviceId]);
-            return (int) $stmt->fetchColumn();
-        }
-
-        $this->pdo->prepare("INSERT INTO incidents (title, description, service_id) VALUES (?, ?, ?)")
-            ->execute([$title, $description, $serviceId]);
-        return (int) $this->pdo->lastInsertId();
+        $stmt = $this->pdo->prepare(
+            "INSERT INTO incidents (title, description, service_id) VALUES (?, ?, ?) RETURNING id"
+        );
+        $stmt->execute([$title, $description, $serviceId]);
+        return (int) $stmt->fetchColumn();
     }
 
     public function resolveIncident(int $id): void
     {
-        $now = $this->driver === 'pgsql' ? 'NOW()' : "datetime('now')";
         $this->pdo->prepare(
-            "UPDATE incidents SET end_time = {$now}, status = 'resolved' WHERE id = ?"
+            "UPDATE incidents SET end_time = NOW(), status = 'resolved' WHERE id = ?"
         )->execute([$id]);
     }
 }

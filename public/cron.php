@@ -23,13 +23,12 @@ if (!hash_equals($cronToken, $provided)) {
     exit;
 }
 
-$logFile = __DIR__ . '/../db/worker.log';
 $db      = Database::fromEnv();
 $checker = new ServiceChecker();
 
 $results = [];
 foreach ($db->getServices() as $service) {
-    $result = $checker->check($service->getUrl());
+    $result    = $checker->check($service->getUrl());
     $db->recordCheck($service->getId(), $result['status_code'], $result['latency_ms']);
 
     $isUp      = $result['status_code'] >= 200 && $result['status_code'] < 400;
@@ -39,12 +38,6 @@ foreach ($db->getServices() as $service) {
         'latency_ms'  => $result['latency_ms'],
         'is_up'       => $isUp,
     ];
-
-    $symbol = $isUp ? '✓' : '✗';
-    $line   = "[{$symbol}] {$service->getName()} — HTTP {$result['status_code']} ({$result['latency_ms']}ms) [via HTTP]";
-    if (is_writable($logFile) || (!file_exists($logFile) && is_writable(dirname($logFile)))) {
-        file_put_contents($logFile, '[' . date('Y-m-d H:i:s') . '] ' . $line . PHP_EOL, FILE_APPEND | LOCK_EX);
-    }
 }
 
 echo json_encode(['ok' => true, 'checked' => count($results), 'results' => $results], JSON_PRETTY_PRINT);

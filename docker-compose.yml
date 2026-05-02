@@ -4,7 +4,6 @@ services:
     ports:
       - "8080:80"
     volumes:
-      - ./db:/var/www/html/db
       - ./.env:/var/www/html/.env:ro
     restart: unless-stopped
 
@@ -13,7 +12,6 @@ services:
     command: >
       sh -c "while true; do php /var/www/html/worker/check.php; sleep 300; done"
     volumes:
-      - ./db:/var/www/html/db
       - ./.env:/var/www/html/.env:ro
     restart: unless-stopped
     depends_on:

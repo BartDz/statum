@@ -6,15 +6,6 @@ require_once __DIR__ . '/../src/ServiceChecker.php';
 
 Env::load(__DIR__ . '/../.env');
 
-$logFile = __DIR__ . '/../db/worker.log';
-
-function worker_log(string $msg, string $file): void
-{
-    if (is_writable($file) || (!file_exists($file) && is_writable(dirname($file)))) {
-        file_put_contents($file, '[' . date('Y-m-d H:i:s') . '] ' . $msg . PHP_EOL, FILE_APPEND | LOCK_EX);
-    }
-}
-
 try {
     $db      = Database::fromEnv();
     $checker = new ServiceChecker();
@@ -24,13 +15,10 @@ try {
         $db->recordCheck($service->getId(), $result['status_code'], $result['latency_ms']);
 
         $symbol = $result['status_code'] >= 200 && $result['status_code'] < 400 ? '✓' : '✗';
-        $line   = "[{$symbol}] {$service->getName()} — HTTP {$result['status_code']} ({$result['latency_ms']}ms)";
-        echo $line . "\n";
-        worker_log($line, $logFile);
+        echo '[' . date('Y-m-d H:i:s') . '] [' . $symbol . '] ' . $service->getName()
+            . ' — HTTP ' . $result['status_code'] . ' (' . $result['latency_ms'] . "ms)\n";
     }
 } catch (Throwable $e) {
-    $msg = 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine();
-    worker_log($msg, $logFile);
-    fwrite(STDERR, $msg . "\n");
+    fwrite(STDERR, 'ERROR: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine() . "\n");
     exit(1);
 }

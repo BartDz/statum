@@ -6,15 +6,39 @@ require_once __DIR__ . '/../src/StatusPage.php';
 
 Env::load(__DIR__ . '/../.env');
 
-$dbError            = null;
-$supabaseConfigured = (bool) getenv('SUPABASE_URL') && (bool) getenv('SUPABASE_KEY');
+$dbError  = null;
+$siteName = getenv('SITE_NAME') ?: 'Status Page';
 
 try {
     $db = Database::fromEnv();
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
-    $db      = Database::sqlite();
 }
+
+if ($dbError): ?><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= htmlspecialchars($siteName) ?></title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+<header>
+    <div class="header__title">
+        <h1><?= htmlspecialchars($siteName) ?></h1>
+        <span class="db-badge db-badge--error" title="<?= htmlspecialchars($dbError) ?>">Supabase</span>
+    </div>
+</header>
+<main>
+    <div class="banner banner--outage"><span class="banner__dot"></span>Database unavailable</div>
+</main>
+</body>
+</html>
+<?php
+    exit;
+endif;
 
 $page    = new StatusPage($db);
 $data    = $page->getData();
@@ -26,14 +50,13 @@ $bannerText = match ($overall) {
     default       => 'Major outage',
 };
 
-$siteName = getenv('SITE_NAME') ?: 'Status Page';
-
 ?><!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($siteName) ?></title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/css/style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"
             onerror="this.onerror=null;this.src='https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'"></script>
@@ -43,15 +66,7 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
 <header>
     <div class="header__title">
         <h1><?= htmlspecialchars($siteName) ?></h1>
-        <?php if ($supabaseConfigured): ?>
-            <?php if ($dbError): ?>
-                <span class="db-badge db-badge--error" title="<?= htmlspecialchars($dbError) ?>">Supabase</span>
-            <?php else: ?>
-                <span class="db-badge db-badge--supabase">Supabase</span>
-            <?php endif ?>
-        <?php else: ?>
-            <span class="db-badge db-badge--sqlite">SQLite</span>
-        <?php endif ?>
+        <span class="db-badge db-badge--supabase">Supabase</span>
     </div>
 </header>
 
@@ -124,11 +139,11 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
             <h2>Active incidents</h2>
             <?php foreach ($incidents as $inc): ?>
                 <div class="incident">
-                    <strong><?= htmlspecialchars($inc->title) ?></strong>
-                    <?php if ($inc->description): ?>
-                        <p><?= htmlspecialchars($inc->description) ?></p>
+                    <strong><?= htmlspecialchars($inc->getTitle()) ?></strong>
+                    <?php if ($inc->getDescription()): ?>
+                        <p><?= htmlspecialchars($inc->getDescription()) ?></p>
                     <?php endif ?>
-                    <small><?= $inc->start_time ?><?= $inc->service_name ? ' · ' . htmlspecialchars($inc->service_name) : '' ?></small>
+                    <small><?= $inc->getStartTime() ?><?= $inc->getServiceName() ? ' · ' . htmlspecialchars($inc->getServiceName()) : '' ?></small>
                 </div>
             <?php endforeach ?>
         <?php endif ?>

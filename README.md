@@ -1,8 +1,8 @@
 # statum
 
-Self-hosted status page. PHP worker pings your URLs every 5 minutes → stores results in SQLite or Supabase → public page shows uptime bars, response time sparklines, and incident history.
+Self-hosted status page. PHP worker pings your URLs every 5 minutes → stores results in Supabase PostgreSQL → public page shows uptime bars, response time sparklines, and incident history.
 
-![PHP](https://img.shields.io/badge/PHP-8.3-blue) ![SQLite](https://img.shields.io/badge/storage-SQLite-green) ![Supabase](https://img.shields.io/badge/storage-Supabase-3ECF8E) ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
+![PHP](https://img.shields.io/badge/PHP-8.3-blue) ![Supabase](https://img.shields.io/badge/storage-Supabase-3ECF8E) ![Docker](https://img.shields.io/badge/docker-ready-2496ED)
 
 ## Quick start
 
@@ -10,7 +10,7 @@ Self-hosted status page. PHP worker pings your URLs every 5 minutes → stores r
 
 ```bash
 cp .env.example .env
-# edit .env — set ADMIN_PASSWORD, SITE_NAME
+# edit .env — set ADMIN_PASSWORD, SUPABASE_URL, SUPABASE_DB_PASSWORD
 docker compose up -d
 ```
 
@@ -31,16 +31,7 @@ Add cron entry to ping services:
 
 ## Configuration
 
-Edit `config/services.php`:
-
-```php
-return [
-    ['name' => 'My API',  'url' => 'https://api.example.com/health'],
-    ['name' => 'Website', 'url' => 'https://example.com'],
-];
-```
-
-Services are synced to the database automatically on the first worker run.
+Services are managed via the admin panel at `/admin.php`. Add each service (name, URL, expected status code) through the UI — no config files needed.
 
 ## Environment variables
 
@@ -51,9 +42,9 @@ Services are synced to the database automatically on the first worker run.
 | `WEBHOOK_TOKEN`        | no       | Shared secret for `/api/report` (disables auth if empty) |
 | `CRON_TOKEN`           | **yes**  | Secret for `/cron.php` HTTP trigger — required to use endpoint |
 | `ALERT_EMAIL`          | no       | Reserved for future email alerts                     |
-| `SUPABASE_URL`         | no       | Supabase project URL — switches storage to PostgreSQL |
-| `SUPABASE_KEY`         | no       | Supabase anon key — used for DB badge indicator       |
-| `SUPABASE_DB_PASSWORD` | no       | Supabase database password — required together with `SUPABASE_URL` to enable PostgreSQL storage |
+| `SUPABASE_URL`         | **yes**  | Supabase project URL                                 |
+| `SUPABASE_KEY`         | **yes**  | Supabase anon key — used for DB badge indicator       |
+| `SUPABASE_DB_PASSWORD` | **yes**  | Supabase database password                           |
 
 ## HTTP cron trigger
 
@@ -69,7 +60,7 @@ Or with a header:
 curl -H "X-Cron-Token: YOUR_CRON_TOKEN" https://yourdomain.com/cron.php
 ```
 
-Set `CRON_TOKEN` in `.env`. The endpoint returns JSON with per-service results and writes to `db/worker.log`.
+Set `CRON_TOKEN` in `.env`. The endpoint returns JSON with per-service results.
 
 External cron services (cron-job.org, EasyCron, UptimeRobot) can call this URL every 5 minutes.
 
@@ -89,14 +80,12 @@ Webhook payload:
 
 Add header `X-Webhook-Token: <your WEBHOOK_TOKEN>`.
 
-## Supabase integration
+## Supabase setup
 
-When `SUPABASE_URL` and `SUPABASE_DB_PASSWORD` are both set, statum connects directly to Supabase PostgreSQL and stores **all data there** — SQLite is not used. When those variables are absent, statum falls back to local SQLite.
-
-### Setup
+statum requires a Supabase project. All data is stored in Supabase PostgreSQL.
 
 1. Create a new Supabase project at [supabase.com](https://supabase.com).
-2. Run the following SQL in the Supabase SQL editor to create the required tables:
+2. Run the following SQL in the Supabase SQL editor:
 
 ```sql
 CREATE TABLE IF NOT EXISTS services (
@@ -130,7 +119,7 @@ CREATE INDEX IF NOT EXISTS idx_checks_service_ts ON checks (service_id, timestam
 
 3. Find your credentials in **Project Settings**:
    - **Project URL** → `SUPABASE_URL`
-   - **API → anon key** → `SUPABASE_KEY` (used for the DB badge indicator)
+   - **API → anon key** → `SUPABASE_KEY`
    - **Database → Database password** → `SUPABASE_DB_PASSWORD`
 
 ```
@@ -144,14 +133,12 @@ statum connects via PDO (native `pdo_pgsql`) — no additional packages required
 ## Structure
 
 ```
-config/services.php   service definitions
-worker/check.php      cron job (curl + SQLite write)
+worker/check.php      cron job (curl + DB write)
 src/                  Database, ServiceChecker, StatusPage, Env classes
 public/               document root (index.php, /api/*, /css/, /js/)
-db/status.sqlite      auto-created on first run (gitignored)
 ```
 
 ## Requirements
 
-- PHP 8.3+ with `pdo_sqlite`, `pdo_pgsql`, and `curl` extensions
+- PHP 8.3+ with `pdo_pgsql` and `curl` extensions
 - Apache with `mod_rewrite` **or** Docker

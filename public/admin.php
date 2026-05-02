@@ -14,14 +14,13 @@ if (!$adminPassword) {
     exit('ADMIN_PASSWORD is not set. Configure it in .env before using the admin panel.');
 }
 
-$dbError            = null;
-$supabaseConfigured = (bool) getenv('SUPABASE_URL') && (bool) getenv('SUPABASE_KEY');
+$dbError = null;
 
 try {
     $db = Database::fromEnv();
 } catch (Throwable $e) {
     $dbError = $e->getMessage();
-    $db      = Database::sqlite();
+    $db      = null;
 }
 
 // --- Auth ---
@@ -45,7 +44,7 @@ $isAuth = !empty($_SESSION['admin']);
 
 // --- Actions (authenticated) ---
 
-if ($isAuth && $_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($isAuth && $db && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
 
     if ($action === ActionType::ADD_SERVICE) {
@@ -95,9 +94,9 @@ if ($isAuth && $_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$services = $db->getServices();
-$incidents = $db->getAllIncidents(30);
-$siteName = getenv('SITE_NAME') ?: 'Status Page';
+$services  = $db ? $db->getServices()      : [];
+$incidents = $db ? $db->getAllIncidents(30) : [];
+$siteName  = getenv('SITE_NAME') ?: 'Status Page';
 
 ?><!DOCTYPE html>
 <html lang="en">
@@ -105,6 +104,7 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin — <?= htmlspecialchars($siteName) ?></title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="/css/style.css">
     <link rel="stylesheet" href="/css/admin.css">
 </head>
@@ -113,14 +113,10 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
 <header>
     <div class="header__title">
         <h1><?= htmlspecialchars($siteName) ?> — Admin</h1>
-        <?php if ($supabaseConfigured): ?>
-            <?php if ($dbError): ?>
-                <span class="db-badge db-badge--error" title="<?= htmlspecialchars($dbError) ?>">Supabase</span>
-            <?php else: ?>
-                <span class="db-badge db-badge--supabase">Supabase</span>
-            <?php endif ?>
+        <?php if ($dbError): ?>
+            <span class="db-badge db-badge--error" title="<?= htmlspecialchars($dbError) ?>">Supabase</span>
         <?php else: ?>
-            <span class="db-badge db-badge--sqlite">SQLite</span>
+            <span class="db-badge db-badge--supabase">Supabase</span>
         <?php endif ?>
     </div>
     <?php if ($isAuth): ?>
@@ -155,11 +151,13 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
     <?php if (isset($_GET['ok'])): ?>
         <p class="notice">Saved successfully.</p>
     <?php endif ?>
+    <?php if ($dbError): ?>
+        <p class="error">Database error: <?= htmlspecialchars($dbError) ?></p>
+    <?php endif ?>
     <?php if (isset($error)): ?>
         <p class="error"><?= htmlspecialchars($error) ?></p>
     <?php endif ?>
 
-    <!-- Services -->
     <div class="card">
         <h2>Services</h2>
         <table class="table">
@@ -204,7 +202,6 @@ $siteName = getenv('SITE_NAME') ?: 'Status Page';
         </form>
     </div>
 
-    <!-- Incidents -->
     <div class="card">
         <h2>Incidents</h2>
         <table class="table">
